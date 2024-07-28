@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech to Text</title>
+    <link rel="stylesheet" href="style_stt.css">
+    <link rel="icon" type="image/png" href="Speech_To_Text-LOGO.png">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dosis:wght@400;600&display=swap">
+</head>
+<body>
+    <main class="converter">
+        <h1 class="header">Speech To Text</h1>
+        <textarea class="converter-text" id="text-output" placeholder="The text here..." readonly></textarea>
+        <div class="converter-nav">
+            <ion-icon name="stop-circle-outline" class="converter-icon stop"></ion-icon>
+            <ion-icon name="mic-outline" class="converter-icon start"></ion-icon>
+            <ion-icon name="refresh-circle-outline" class="converter-icon refresh"></ion-icon>
+        </div>
+    </main>
+    
+    <script>
+        // Get elements
+        const textOutput = document.getElementById('text-output');
+        const startIcon = document.querySelector('.start');
+        const stopIcon = document.querySelector('.stop');
+        const refreshIcon = document.querySelector('.refresh');
+
+        let isRecording = false;
+        let recognitionStoppedManually = false; // Flag to check if stopped manually
+
+        // Initialize Speech Recognition
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'en'; //For Arabic language (ar) 
+        recognition.interimResults = false;
+        recognition.continuous = false;
+
+        // Function to handle speech recognition results
+        function convert(e) {
+            textOutput.value += e.results[0][0].transcript + ' ';
+        }
+
+        // Function to save text to the server
+        function saveText(text) {
+            console.log('Sending text to server:', text); // Check the text
+            fetch('Dstt.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({ text: text })
+            })
+            .then(response => response.text())
+            .then(result => console.log(result))
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Function to handle button clicks
+        function init(e) {
+            if (e.target.matches('.start') && !isRecording) {
+                recognition.start();
+                startIcon.classList.add('active');
+                stopIcon.classList.remove('active');
+                refreshIcon.classList.remove('active');
+                isRecording = true;
+                recognitionStoppedManually = false;
+            } else if (e.target.matches('.stop') && isRecording) {
+                recognition.stop();
+                startIcon.classList.remove('active');
+                stopIcon.classList.add('active');
+                refreshIcon.classList.remove('active');
+                isRecording = false;
+                recognitionStoppedManually = true;
+                saveText(textOutput.value); // Save text when stopped
+            } else if (e.target.matches('.refresh')) {
+                textOutput.value = '';
+                saveText(textOutput.value); // Save empty text
+                startIcon.classList.remove('active');
+                stopIcon.classList.remove('active');
+                refreshIcon.classList.add('active');
+                if (isRecording) {
+                    recognition.stop();
+                    recognition.start();
+                }
+            }
+        }
+
+        document.addEventListener('click', init, false);
+        recognition.addEventListener('result', convert, false);
+        recognition.addEventListener('end', () => {
+            if (isRecording && !recognitionStoppedManually) {
+                recognition.start(); // Restart recording if not stopped manually
+            }
+        }, false);
+    </script>
+</body>
+</html>
